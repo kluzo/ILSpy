@@ -25,6 +25,7 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
 using ICSharpCode.Decompiler.CSharp.Resolver;
@@ -233,25 +234,27 @@ namespace ICSharpCode.Decompiler.CSharp
 		/// <summary>
 		/// Creates a new <see cref="CSharpDecompiler"/> instance from the given <paramref name="fileName"/> using the given <paramref name="settings"/>.
 		/// </summary>
-		public CSharpDecompiler(string fileName, DecompilerSettings settings)
-			: this(CreateTypeSystemFromFile(fileName, settings), settings)
+		public async Task<CSharpDecompiler> CreateAsync(string fileName, DecompilerSettings settings)
 		{
+			var typeSystem = await CreateTypeSystemFromFileAsync(fileName, settings);
+			return new CSharpDecompiler(typeSystem, settings);
 		}
 
 		/// <summary>
 		/// Creates a new <see cref="CSharpDecompiler"/> instance from the given <paramref name="fileName"/> using the given <paramref name="assemblyResolver"/> and <paramref name="settings"/>.
 		/// </summary>
-		public CSharpDecompiler(string fileName, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
-			: this(LoadPEFile(fileName, settings), assemblyResolver, settings)
+		public Task<CSharpDecompiler> CreateAsync(string fileName, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
 		{
+			return CreateAsync(LoadPEFile(fileName, settings), assemblyResolver, settings);
 		}
 
 		/// <summary>
 		/// Creates a new <see cref="CSharpDecompiler"/> instance from the given <paramref name="module"/> using the given <paramref name="assemblyResolver"/> and <paramref name="settings"/>.
 		/// </summary>
-		public CSharpDecompiler(PEFile module, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
-			: this(new DecompilerTypeSystem(module, assemblyResolver, settings), settings)
+		public async Task<CSharpDecompiler> CreateAsync(PEFile module, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
 		{
+			var typeSystem = await DecompilerTypeSystem.CreateAsync(module, assemblyResolver, settings);
+			return new CSharpDecompiler(typeSystem, settings);
 		}
 
 		/// <summary>
@@ -440,7 +443,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			);
 		}
 
-		static DecompilerTypeSystem CreateTypeSystemFromFile(string fileName, DecompilerSettings settings)
+		static async Task<DecompilerTypeSystem> CreateTypeSystemFromFileAsync(string fileName, DecompilerSettings settings)
 		{
 			settings.LoadInMemory = true;
 			var file = LoadPEFile(fileName, settings);
@@ -448,7 +451,7 @@ namespace ICSharpCode.Decompiler.CSharp
 				file.DetectTargetFrameworkId(), file.DetectRuntimePack(),
 				settings.LoadInMemory ? PEStreamOptions.PrefetchMetadata : PEStreamOptions.Default,
 				settings.ApplyWindowsRuntimeProjections ? MetadataReaderOptions.ApplyWindowsRuntimeProjections : MetadataReaderOptions.None);
-			return new DecompilerTypeSystem(file, resolver);
+			return await DecompilerTypeSystem.CreateAsync(file, resolver);
 		}
 
 		static TypeSystemAstBuilder CreateAstBuilder(DecompilerSettings settings)

@@ -130,16 +130,16 @@ namespace ICSharpCode.Decompiler.CSharp.ProjectDecompiler
 		HashSet<string> directories = new HashSet<string>(Platform.FileNameComparer);
 		readonly IProjectFileWriter projectWriter;
 
-		public void DecompileProject(PEFile moduleDefinition, string targetDirectory, CancellationToken cancellationToken = default(CancellationToken))
+		public async Task DecompileProjectAsync(PEFile moduleDefinition, string targetDirectory, CancellationToken cancellationToken = default(CancellationToken))
 		{
 			string projectFileName = Path.Combine(targetDirectory, CleanUpFileName(moduleDefinition.Name) + ".csproj");
 			using (var writer = new StreamWriter(projectFileName))
 			{
-				DecompileProject(moduleDefinition, targetDirectory, writer, cancellationToken);
+				await DecompileProjectAsync(moduleDefinition, targetDirectory, writer, cancellationToken);
 			}
 		}
 
-		public ProjectId DecompileProject(PEFile moduleDefinition, string targetDirectory, TextWriter projectFileWriter, CancellationToken cancellationToken = default(CancellationToken))
+		public async Task<ProjectId> DecompileProjectAsync(PEFile moduleDefinition, string targetDirectory, TextWriter projectFileWriter, CancellationToken cancellationToken = default(CancellationToken))
 		{
 			if (string.IsNullOrEmpty(targetDirectory))
 			{
@@ -147,9 +147,10 @@ namespace ICSharpCode.Decompiler.CSharp.ProjectDecompiler
 			}
 			TargetDirectory = targetDirectory;
 			directories.Clear();
-			var files = WriteCodeFilesInProject(moduleDefinition, cancellationToken).ToList();
-			files.AddRange(WriteResourceFilesInProject(moduleDefinition));
-			files.AddRange(WriteMiscellaneousFilesInProject(moduleDefinition));
+			var files = await WriteCodeFilesInProjectAsync(moduleDefinition, cancellationToken);
+			var fileList = files.ToList();
+			fileList.AddRange(WriteResourceFilesInProject(moduleDefinition));
+			fileList.AddRange(WriteMiscellaneousFilesInProject(moduleDefinition));
 			if (StrongNameKeyFile != null)
 			{
 				File.Copy(StrongNameKeyFile, Path.Combine(targetDirectory, Path.GetFileName(StrongNameKeyFile)), overwrite: true);
@@ -200,7 +201,7 @@ namespace ICSharpCode.Decompiler.CSharp.ProjectDecompiler
 			return new[] { ("Compile", assemblyInfo) };
 		}
 
-		IEnumerable<(string itemType, string fileName)> WriteCodeFilesInProject(Metadata.PEFile module, CancellationToken cancellationToken)
+		async Task<IEnumerable<(string itemType, string fileName)>> WriteCodeFilesInProjectAsync(Metadata.PEFile module, CancellationToken cancellationToken)
 		{
 			var metadata = module.Metadata;
 			var files = module.Metadata.GetTopLevelTypeDefinitions().Where(td => IncludeTypeWhenDecompilingProject(module, td)).GroupBy(
@@ -222,7 +223,7 @@ namespace ICSharpCode.Decompiler.CSharp.ProjectDecompiler
 				}, StringComparer.OrdinalIgnoreCase).ToList();
 			int total = files.Count;
 			var progress = ProgressIndicator;
-			DecompilerTypeSystem ts = new DecompilerTypeSystem(module, AssemblyResolver, Settings);
+			DecompilerTypeSystem ts = await DecompilerTypeSystem.CreateAsync(module, AssemblyResolver, Settings);
 			Parallel.ForEach(
 				Partitioner.Create(files, loadBalance: true),
 				new ParallelOptions {
