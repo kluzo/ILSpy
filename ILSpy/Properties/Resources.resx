@@ -396,6 +396,9 @@ Are you sure you want to continue?</value>
   <data name="DecompilerSettings.Other" xml:space="preserve">
     <value>Other</value>
   </data>
+  <data name="DecompilerSettings.ParameterNullCheck" xml:space="preserve">
+    <value>Use parameter null checking</value>
+  </data>
   <data name="DecompilerSettings.PatternMatching" xml:space="preserve">
     <value>Use pattern matching expressions</value>
   </data>
@@ -915,6 +918,9 @@ Do you want to continue?</value>
   </data>
   <data name="UseLogicOperationSugar" xml:space="preserve">
     <value>UseLogicOperationSugar</value>
+  </data>
+  <data name="UseNestedNamespaceNodes" xml:space="preserve">
+    <value>Use nested namespace structure</value>
   </data>
   <data name="UseTabsInsteadOfSpaces" xml:space="preserve">
     <value>Use tabs instead of spaces</value>

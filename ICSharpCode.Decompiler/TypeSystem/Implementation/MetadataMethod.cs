@@ -233,11 +233,12 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 							returnTypeAttributes = par.GetCustomAttributes();
 						}
 					}
-					else if (par.SequenceNumber > 0 && i < signature.RequiredParameterCount)
+					else if (i < par.SequenceNumber && par.SequenceNumber <= signature.RequiredParameterCount)
 					{
 						// "Successive rows of the Param table that are owned by the same method shall be
 						// ordered by increasing Sequence value - although gaps in the sequence are allowed"
-						Debug.Assert(i < par.SequenceNumber);
+						Debug.Assert(par.SequenceNumber <= signature.ParameterTypes.Length);
+						Debug.Assert(par.SequenceNumber <= parameters.Length);
 						// Fill gaps in the sequence with non-metadata parameters:
 						while (i < par.SequenceNumber - 1)
 						{
@@ -332,6 +333,7 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 			var metadata = module.metadata;
 			var def = metadata.GetMethodDefinition(handle);
 			MethodImplAttributes implAttributes = def.ImplAttributes & ~MethodImplAttributes.CodeTypeMask;
+			int methodCodeType = (int)(def.ImplAttributes & MethodImplAttributes.CodeTypeMask);
 
 			#region DllImportAttribute
 			var info = def.GetImport();
@@ -429,7 +431,7 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 			#endregion
 
 			#region PreserveSigAttribute
-			if (implAttributes == MethodImplAttributes.PreserveSig)
+			if (implAttributes == MethodImplAttributes.PreserveSig && methodCodeType == 0)
 			{
 				b.Add(KnownAttribute.PreserveSig);
 				implAttributes = 0;
@@ -439,10 +441,13 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 			#region MethodImplAttribute
 			if (implAttributes != 0)
 			{
-				b.Add(KnownAttribute.MethodImpl,
-					new TopLevelTypeName("System.Runtime.CompilerServices", nameof(MethodImplOptions)),
-					(int)implAttributes
-				);
+				var methodImpl = new AttributeBuilder(module, KnownAttribute.MethodImpl);
+				methodImpl.AddFixedArg(new TopLevelTypeName("System.Runtime.CompilerServices", nameof(MethodImplOptions)), (int)implAttributes);
+				if (methodCodeType != 0)
+				{
+					methodImpl.AddNamedArg("MethodCodeType", new TopLevelTypeName("System.Runtime.CompilerServices", nameof(MethodCodeType)), methodCodeType);
+				}
+				b.Add(methodImpl.Build());
 			}
 			#endregion
 

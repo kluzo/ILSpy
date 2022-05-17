@@ -37,6 +37,7 @@ using ICSharpCode.Decompiler.CSharp.Transforms;
 using ICSharpCode.Decompiler.Disassembler;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
+using ICSharpCode.ILSpyX.PdbProvider;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -317,7 +318,10 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 			}
 			if ((flags & CompilerOptions.UseRoslynMask) != 0)
 			{
-				preprocessorSymbols.Add("NETCORE");
+				if (!flags.HasFlag(CompilerOptions.TargetNet40))
+				{
+					preprocessorSymbols.Add("NETCORE");
+				}
 				preprocessorSymbols.Add("ROSLYN");
 				preprocessorSymbols.Add("CS60");
 				preprocessorSymbols.Add("VB11");
@@ -347,7 +351,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 					preprocessorSymbols.Add("CS100");
 					if (flags.HasFlag(CompilerOptions.Preview))
 					{
-
+						preprocessorSymbols.Add("CS110");
 					}
 				}
 			}
@@ -660,7 +664,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 			using (var file = new FileStream(assemblyFileName, FileMode.Open, FileAccess.Read))
 			{
 				var module = new PEFile(assemblyFileName, file, PEStreamOptions.PrefetchEntireImage);
-				string targetFramework = module.Reader.DetectTargetFrameworkId();
+				string targetFramework = module.Metadata.DetectTargetFrameworkId();
 				var resolver = new UniversalAssemblyResolver(assemblyFileName, false,
 					targetFramework, null, PEStreamOptions.PrefetchMetadata);
 				resolver.AddSearchDirectory(targetFramework.Contains(".NETFramework") ? RefAsmPath : coreRefAsmPath);
@@ -672,7 +676,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 				decompiler.AstTransforms.Add(new EscapeInvalidIdentifiers());
 				var pdbFileName = Path.ChangeExtension(assemblyFileName, ".pdb");
 				if (File.Exists(pdbFileName))
-					decompiler.DebugInfoProvider = PdbProvider.DebugInfoUtils.FromFile(module, pdbFileName);
+					decompiler.DebugInfoProvider = DebugInfoUtils.FromFile(module, pdbFileName);
 				var syntaxTree = decompiler.DecompileWholeModuleAsSingleFile(sortTypes: true);
 
 				StringWriter output = new StringWriter();

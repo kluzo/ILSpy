@@ -616,6 +616,11 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public async Task CustomAttributes([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
 		{
+			if (cscOptions.HasFlag(CompilerOptions.UseRoslynLatest))
+			{
+				// Test C# 11 generic attributes
+				cscOptions |= CompilerOptions.Preview;
+			}
 			await RunForLibrary(cscOptions: cscOptions);
 		}
 
@@ -670,7 +675,7 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public async Task YieldReturn([ValueSource(nameof(defaultOptionsWithMcs))] CompilerOptions cscOptions)
 		{
-			await RunForLibrary(cscOptions: cscOptions);
+			await RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
 		}
 
 		[Test]
@@ -707,6 +712,12 @@ namespace ICSharpCode.Decompiler.Tests
 		public async Task StaticAbstractInterfaceMembers([ValueSource(nameof(roslynLatestOnlyOptions))] CompilerOptions cscOptions)
 		{
 			await RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
+		}
+
+		[Test]
+		public async Task MetadataAttributes([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
+		{
+			await RunForLibrary(cscOptions: cscOptions);
 		}
 
 		async Task RunForLibrary([CallerMemberName] string testName = null, AssemblerOptions asmOptions = AssemblerOptions.None, CompilerOptions cscOptions = CompilerOptions.None, DecompilerSettings decompilerSettings = null)
