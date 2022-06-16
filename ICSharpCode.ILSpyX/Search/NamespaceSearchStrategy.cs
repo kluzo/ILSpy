@@ -24,9 +24,9 @@ using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.Util;
 
-namespace ICSharpCode.ILSpy.Search
+namespace ICSharpCode.ILSpyX.Search
 {
-	class NamespaceSearchStrategy : AbstractSearchStrategy
+	public class NamespaceSearchStrategy : AbstractSearchStrategy
 	{
 		public NamespaceSearchStrategy(SearchRequest request, IProducerConsumerCollection<SearchResult> resultQueue)
 			: base(request, resultQueue)
@@ -36,7 +36,7 @@ namespace ICSharpCode.ILSpy.Search
 		public override void Search(PEFile module, CancellationToken cancellationToken)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-			var typeSystem = module.GetTypeSystemWithCurrentOptionsOrNull();
+			var typeSystem = module.GetTypeSystemWithDecompilerSettingsOrNull(searchRequest.DecompilerSettings);
 			if (typeSystem == null)
 				return;
 
@@ -58,15 +58,7 @@ namespace ICSharpCode.ILSpy.Search
 
 		void OnFoundResult(PEFile module, INamespace ns)
 		{
-			var name = ns.FullName.Length == 0 ? "-" : ns.FullName;
-			var result = new NamespaceSearchResult {
-				Namespace = ns,
-				Name = name,
-				Fitness = 1.0f / name.Length,
-				Location = module.Name,
-				Assembly = module.FullName,
-			};
-			OnFoundResult(result);
+			OnFoundResult(searchRequest.SearchResultFactory.Create(module, ns));
 		}
 	}
 }

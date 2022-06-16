@@ -21,12 +21,33 @@ using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using System.Threading;
 
+using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
+using ICSharpCode.ILSpyX.Abstractions;
 
-namespace ICSharpCode.ILSpy.Search
+namespace ICSharpCode.ILSpyX.Search
 {
-	struct SearchRequest
+	public enum SearchMode
 	{
+		TypeAndMember,
+		Type,
+		Member,
+		Method,
+		Field,
+		Property,
+		Event,
+		Literal,
+		Token,
+		Resource,
+		Assembly,
+		Namespace
+	}
+
+	public struct SearchRequest
+	{
+		public DecompilerSettings DecompilerSettings;
+		public ITreeNodeFactory TreeNodeFactory;
+		public ISearchResultFactory SearchResultFactory;
 		public SearchMode Mode;
 		public AssemblySearchKind AssemblySearchKind;
 		public MemberSearchKind MemberSearchKind;
@@ -38,7 +59,7 @@ namespace ICSharpCode.ILSpy.Search
 		public string InAssembly;
 	}
 
-	abstract class AbstractSearchStrategy
+	public abstract class AbstractSearchStrategy
 	{
 		protected readonly string[] searchTerm;
 		protected readonly Regex regex;
