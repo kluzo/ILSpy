@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2014 Daniel Grunwald
+// Copyright (c) 2014 Daniel Grunwald
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -27,6 +27,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
+using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
 using ICSharpCode.Decompiler.CSharp.Resolver;
 using ICSharpCode.Decompiler.CSharp.Syntax;
@@ -136,7 +137,7 @@ namespace ICSharpCode.Decompiler.CSharp
 							// run interleaved (statement by statement).
 							// Pretty much all transforms that open up new expression inlining
 							// opportunities belong in this category.
-							new ILInlining(),
+							new ILInlining() { options = InliningOptions.AllowInliningOfLdloca },
 							// Inlining must be first, because it doesn't trigger re-runs.
 							// Any other transform that opens up new inlining opportunities should call RequestRerun().
 							new ExpressionTransforms(),
@@ -151,7 +152,8 @@ namespace ICSharpCode.Decompiler.CSharp
 							new IndexRangeTransform(),
 							new DeconstructionTransform(),
 							new NamedArgumentTransform(),
-							new UserDefinedLogicTransform()
+							new UserDefinedLogicTransform(),
+							new InterpolatedStringTransform()
 						),
 					}
 				},
@@ -368,8 +370,16 @@ namespace ICSharpCode.Decompiler.CSharp
 							return true;
 					}
 					// event-fields are not [CompilerGenerated]
-					if (settings.AutomaticEvents && metadata.GetTypeDefinition(field.GetDeclaringType()).GetEvents().Any(ev => metadata.GetEventDefinition(ev).Name == field.Name))
-						return true;
+					if (settings.AutomaticEvents)
+					{
+						foreach (var ev in metadata.GetTypeDefinition(field.GetDeclaringType()).GetEvents())
+						{
+							var eventName = metadata.GetString(metadata.GetEventDefinition(ev).Name);
+							var fieldName = metadata.GetString(field.Name);
+							if (IsEventBackingFieldName(fieldName, eventName, out _))
+								return true;
+						}
+					}
 					if (settings.ArrayInitializers && metadata.GetString(metadata.GetTypeDefinition(field.GetDeclaringType()).Name).StartsWith("<PrivateImplementationDetails>", StringComparison.Ordinal))
 					{
 						// only hide fields starting with '__StaticArrayInit'
@@ -409,6 +419,20 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				propertyName = name.Substring(1);
 				return field.GetCustomAttributes().HasKnownAttribute(metadata, KnownAttribute.CompilerGenerated);
+			}
+			return false;
+		}
+
+		internal static bool IsEventBackingFieldName(string fieldName, string eventName, out int suffixLength)
+		{
+			suffixLength = 0;
+			if (fieldName == eventName)
+				return true;
+			var vbSuffixLength = "Event".Length;
+			if (fieldName.Length == eventName.Length + vbSuffixLength && fieldName.StartsWith(eventName, StringComparison.Ordinal) && fieldName.EndsWith("Event", StringComparison.Ordinal))
+			{
+				suffixLength = vbSuffixLength;
+				return true;
 			}
 			return false;
 		}
@@ -509,6 +533,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			typeSystemAstBuilder.SupportInitAccessors = settings.InitAccessors;
 			typeSystemAstBuilder.SupportRecordClasses = settings.RecordClasses;
 			typeSystemAstBuilder.SupportRecordStructs = settings.RecordStructs;
+			typeSystemAstBuilder.AlwaysUseGlobal = settings.AlwaysUseGlobal;
 			return typeSystemAstBuilder;
 		}
 
@@ -522,6 +547,14 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				return null;
 			}
+		}
+
+		DecompileRun CreateDecompileRun()
+		{
+			return new DecompileRun(settings) {
+				DocumentationProvider = DocumentationProvider ?? CreateDefaultDocumentationProvider(),
+				CancellationToken = CancellationToken
+			};
 		}
 
 		void RunTransforms(AstNode rootNode, DecompileRun decompileRun, ITypeResolveContext decompilationContext)
@@ -552,10 +585,7 @@ namespace ICSharpCode.Decompiler.CSharp
 		public SyntaxTree DecompileModuleAndAssemblyAttributes()
 		{
 			var decompilationContext = new SimpleTypeResolveContext(typeSystem.MainModule);
-			var decompileRun = new DecompileRun(settings) {
-				DocumentationProvider = DocumentationProvider ?? CreateDefaultDocumentationProvider(),
-				CancellationToken = CancellationToken
-			};
+			DecompileRun decompileRun = CreateDecompileRun();
 			syntaxTree = new SyntaxTree();
 			RequiredNamespaceCollector.CollectAttributeNamespaces(module, decompileRun.Namespaces);
 			DoDecompileModuleAndAssemblyAttributes(decompileRun, decompilationContext, syntaxTree);
@@ -641,10 +671,7 @@ namespace ICSharpCode.Decompiler.CSharp
 		public SyntaxTree DecompileWholeModuleAsSingleFile(bool sortTypes)
 		{
 			var decompilationContext = new SimpleTypeResolveContext(typeSystem.MainModule);
-			var decompileRun = new DecompileRun(settings) {
-				DocumentationProvider = DocumentationProvider ?? CreateDefaultDocumentationProvider(),
-				CancellationToken = CancellationToken
-			};
+			var decompileRun = CreateDecompileRun();
 			syntaxTree = new SyntaxTree();
 			RequiredNamespaceCollector.CollectNamespaces(module, decompileRun.Namespaces);
 			DoDecompileModuleAndAssemblyAttributes(decompileRun, decompilationContext, syntaxTree);
@@ -666,10 +693,7 @@ namespace ICSharpCode.Decompiler.CSharp
 		/// </summary>
 		public ILTransformContext CreateILTransformContext(ILFunction function)
 		{
-			var decompileRun = new DecompileRun(settings) {
-				DocumentationProvider = DocumentationProvider ?? CreateDefaultDocumentationProvider(),
-				CancellationToken = CancellationToken
-			};
+			var decompileRun = CreateDecompileRun();
 			RequiredNamespaceCollector.CollectNamespaces(function.Method, module, decompileRun.Namespaces);
 			return new ILTransformContext(function, typeSystem, DebugInfoProvider, settings) {
 				CancellationToken = CancellationToken,
@@ -914,10 +938,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			if (types == null)
 				throw new ArgumentNullException(nameof(types));
 			var decompilationContext = new SimpleTypeResolveContext(typeSystem.MainModule);
-			var decompileRun = new DecompileRun(settings) {
-				DocumentationProvider = DocumentationProvider ?? CreateDefaultDocumentationProvider(),
-				CancellationToken = CancellationToken
-			};
+			var decompileRun = CreateDecompileRun();
 			syntaxTree = new SyntaxTree();
 
 			foreach (var type in types)
@@ -957,12 +978,9 @@ namespace ICSharpCode.Decompiler.CSharp
 			if (type == null)
 				throw new InvalidOperationException($"Could not find type definition {fullTypeName} in type system.");
 			if (type.ParentModule != typeSystem.MainModule)
-				throw new NotSupportedException("Decompiling types that are not part of the main module is not supported.");
+				throw new NotSupportedException($"Type {fullTypeName} was not found in the module being decompiled, but only in {type.ParentModule.Name}");
 			var decompilationContext = new SimpleTypeResolveContext(typeSystem.MainModule);
-			var decompileRun = new DecompileRun(settings) {
-				DocumentationProvider = DocumentationProvider ?? CreateDefaultDocumentationProvider(),
-				CancellationToken = CancellationToken
-			};
+			var decompileRun = CreateDecompileRun();
 			syntaxTree = new SyntaxTree();
 			RequiredNamespaceCollector.CollectNamespaces(type.MetadataToken, module, decompileRun.Namespaces);
 			DoDecompileTypes(new[] { (TypeDefinitionHandle)type.MetadataToken }, decompileRun, decompilationContext, syntaxTree);
@@ -997,10 +1015,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			if (definitions == null)
 				throw new ArgumentNullException(nameof(definitions));
 			syntaxTree = new SyntaxTree();
-			var decompileRun = new DecompileRun(settings) {
-				DocumentationProvider = DocumentationProvider ?? CreateDefaultDocumentationProvider(),
-				CancellationToken = CancellationToken
-			};
+			var decompileRun = CreateDecompileRun();
 			foreach (var entity in definitions)
 			{
 				if (entity.IsNil)
@@ -1100,6 +1115,20 @@ namespace ICSharpCode.Decompiler.CSharp
 		public string DecompileAsString(IEnumerable<EntityHandle> definitions)
 		{
 			return SyntaxTreeToString(Decompile(definitions));
+		}
+
+		readonly Dictionary<TypeDefinitionHandle, PartialTypeInfo> partialTypes = new();
+
+		public void AddPartialTypeDefinition(PartialTypeInfo info)
+		{
+			if (!partialTypes.TryGetValue(info.DeclaringTypeDefinitionHandle, out var existingInfo))
+			{
+				partialTypes.Add(info.DeclaringTypeDefinitionHandle, info);
+			}
+			else
+			{
+				existingInfo.AddDeclaredMembers(info);
+			}
 		}
 
 		IEnumerable<EntityDeclaration> AddInterfaceImplHelpers(
@@ -1321,6 +1350,11 @@ namespace ICSharpCode.Decompiler.CSharp
 
 				var allOrderedEntities = typeDef.NestedTypes.Concat<IEntity>(allOrderedMembers).ToArray();
 
+				if (!partialTypes.TryGetValue((TypeDefinitionHandle)typeDef.MetadataToken, out var partialTypeInfo))
+				{
+					partialTypeInfo = null;
+				}
+
 				// Decompile members that are not compiler-generated.
 				foreach (var entity in allOrderedEntities)
 				{
@@ -1328,7 +1362,7 @@ namespace ICSharpCode.Decompiler.CSharp
 					{
 						continue;
 					}
-					DoDecompileMember(entity, recordDecompiler);
+					DoDecompileMember(entity, recordDecompiler, partialTypeInfo);
 				}
 
 				// Decompile compiler-generated members that are still needed.
@@ -1340,7 +1374,7 @@ namespace ICSharpCode.Decompiler.CSharp
 						// Member is already decompiled.
 						continue;
 					}
-					DoDecompileMember(entity, recordDecompiler);
+					DoDecompileMember(entity, recordDecompiler, partialTypeInfo);
 				}
 
 				// Add all decompiled members to syntax tree in the correct order.
@@ -1354,6 +1388,10 @@ namespace ICSharpCode.Decompiler.CSharp
 					// Remove the [DefaultMember] attribute if the class contains indexers
 					RemoveAttribute(typeDecl, KnownAttribute.DefaultMember);
 				}
+				if (partialTypeInfo != null)
+				{
+					typeDecl.Modifiers |= Modifiers.Partial;
+				}
 				if (settings.IntroduceRefModifiersOnStructs)
 				{
 					if (FindAttribute(typeDecl, KnownAttribute.Obsolete, out var attr))
@@ -1366,6 +1404,10 @@ namespace ICSharpCode.Decompiler.CSharp
 								attr.Remove();
 						}
 					}
+				}
+				if (settings.RequiredMembers)
+				{
+					RemoveAttribute(typeDecl, KnownAttribute.RequiredAttribute);
 				}
 				if (typeDecl.ClassType == ClassType.Enum)
 				{
@@ -1408,8 +1450,13 @@ namespace ICSharpCode.Decompiler.CSharp
 				Instrumentation.DecompilerEventSource.Log.DoDecompileTypeDefinition(typeDef.FullName, watch.ElapsedMilliseconds);
 			}
 
-			void DoDecompileMember(IEntity entity, RecordDecompiler recordDecompiler)
+			void DoDecompileMember(IEntity entity, RecordDecompiler recordDecompiler, PartialTypeInfo partialType)
 			{
+				if (partialType != null && partialType.IsDeclaredMember(entity.MetadataToken))
+				{
+					return;
+				}
+
 				EntityDeclaration entityDecl;
 				switch (entity)
 				{
@@ -1474,7 +1521,7 @@ namespace ICSharpCode.Decompiler.CSharp
 
 		EnumValueDisplayMode DetectBestEnumValueDisplayMode(ITypeDefinition typeDef, PEFile module)
 		{
-			if (typeDef.HasAttribute(KnownAttribute.Flags, inherit: false))
+			if (typeDef.HasAttribute(KnownAttribute.Flags))
 				return EnumValueDisplayMode.AllHex;
 			bool first = true;
 			long firstValue = 0, previousValue = 0;
@@ -1853,6 +1900,10 @@ namespace ICSharpCode.Decompiler.CSharp
 				typeSystemAstBuilder.UseSpecialConstants = !(field.DeclaringType.Equals(field.ReturnType) || isMathPIOrE);
 				var fieldDecl = typeSystemAstBuilder.ConvertEntity(field);
 				SetNewModifier(fieldDecl);
+				if (settings.RequiredMembers && RemoveAttribute(fieldDecl, KnownAttribute.RequiredAttribute))
+				{
+					fieldDecl.Modifiers |= Modifiers.Required;
+				}
 				if (settings.FixedBuffers && IsFixedField(field, out var elementType, out var elementCount))
 				{
 					var fixedFieldDecl = new FixedFieldDeclaration();
@@ -1900,7 +1951,7 @@ namespace ICSharpCode.Decompiler.CSharp
 		{
 			type = null;
 			elementCount = 0;
-			IAttribute attr = field.GetAttribute(KnownAttribute.FixedBuffer, inherit: false);
+			IAttribute attr = field.GetAttribute(KnownAttribute.FixedBuffer);
 			if (attr != null && attr.FixedArguments.Length == 2)
 			{
 				if (attr.FixedArguments[0].Value is IType trr && attr.FixedArguments[1].Value is int length)
@@ -1964,6 +2015,10 @@ namespace ICSharpCode.Decompiler.CSharp
 					RemoveAttribute(getter, KnownAttribute.PreserveBaseOverrides);
 					propertyDecl.Modifiers &= ~(Modifiers.New | Modifiers.Virtual);
 					propertyDecl.Modifiers |= Modifiers.Override;
+				}
+				if (settings.RequiredMembers && RemoveAttribute(propertyDecl, KnownAttribute.RequiredAttribute))
+				{
+					propertyDecl.Modifiers |= Modifiers.Required;
 				}
 				return propertyDecl;
 			}

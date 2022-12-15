@@ -40,6 +40,7 @@ namespace ICSharpCode.Decompiler.Metadata
 		public virtual ManifestResourceAttributes Attributes => ManifestResourceAttributes.Public;
 		public abstract string Name { get; }
 		public abstract Stream? TryOpenStream();
+		public abstract long? TryGetLength();
 	}
 
 	public class ByteArrayResource : Resource
@@ -57,6 +58,11 @@ namespace ICSharpCode.Decompiler.Metadata
 		{
 			return new MemoryStream(data);
 		}
+
+		public override long? TryGetLength()
+		{
+			return data.Length;
+		}
 	}
 
 	sealed class MetadataResource : Resource
@@ -70,8 +76,6 @@ namespace ICSharpCode.Decompiler.Metadata
 			this.Module = module ?? throw new ArgumentNullException(nameof(module));
 			this.Handle = handle;
 		}
-
-		ManifestResource This() => Module.Metadata.GetManifestResource(Handle);
 
 		public bool Equals(MetadataResource other)
 		{
@@ -90,40 +94,64 @@ namespace ICSharpCode.Decompiler.Metadata
 			return unchecked(982451629 * Module.GetHashCode() + 982451653 * MetadataTokens.GetToken(Handle));
 		}
 
-		public override string Name => Module.Metadata.GetString(This().Name);
+		public override string Name => Module.Metadata.GetString(Module.Metadata.GetManifestResource(Handle).Name);
 
-		public override ManifestResourceAttributes Attributes => This().Attributes;
+		public override ManifestResourceAttributes Attributes => Module.Metadata.GetManifestResource(Handle).Attributes;
 		public bool HasFlag(ManifestResourceAttributes flag) => (Attributes & flag) == flag;
 		public override ResourceType ResourceType => GetResourceType();
 
 		ResourceType GetResourceType()
 		{
-			if (This().Implementation.IsNil)
+			var resource = Module.Metadata.GetManifestResource(Handle);
+			if (resource.Implementation.IsNil)
 				return ResourceType.Embedded;
-			if (This().Implementation.Kind == HandleKind.AssemblyReference)
+			if (resource.Implementation.Kind == HandleKind.AssemblyReference)
 				return ResourceType.AssemblyLinked;
 			return ResourceType.Linked;
 		}
 
-		public override unsafe Stream? TryOpenStream()
+		unsafe bool TryReadResource(out byte* ptr, out long length)
 		{
+			ptr = null;
+			length = 0;
+			// embedded resources cannot be read from this binary.
 			if (ResourceType != ResourceType.Embedded)
-				return null;
+				return false;
+			// get cor header
 			var headers = Module.Reader.PEHeaders;
 			if (headers.CorHeader == null)
-				return null;
+				return false;
 			var resources = headers.CorHeader.ResourcesDirectory;
-			if (resources.RelativeVirtualAddress == 0)
-				return null;
+			// validate resources directory, GetSectionData throws on negative RVAs
+			if (resources.RelativeVirtualAddress <= 0)
+				return false;
 			var sectionData = Module.Reader.GetSectionData(resources.RelativeVirtualAddress);
-			if (sectionData.Length == 0)
-				throw new BadImageFormatException("RVA could not be found in any section!");
-			var reader = sectionData.GetReader();
-			reader.Offset += (int)This().Offset;
-			int length = reader.ReadInt32();
-			if (length < 0 || length > reader.RemainingBytes)
-				throw new BadImageFormatException("Resource stream length invalid");
-			return new ResourceMemoryStream(Module.Reader, reader.CurrentPointer, length);
+			// validate section length: we need at least 4 bytes to extract
+			// the actual length of the resource blob.
+			if (sectionData.Length < 4)
+				return false;
+			var offset = Module.Metadata.GetManifestResource(Handle).Offset;
+			// validate resource offset
+			if (offset < 0 || offset > sectionData.Length - 4)
+				return false;
+			ptr = sectionData.Pointer + offset;
+			// get actual length of resource blob.
+			length = ptr[0] + (ptr[1] << 8) + (ptr[2] << 16) + (ptr[3] << 24);
+			return length >= 0 && length <= sectionData.Length;
+		}
+
+		public override unsafe Stream? TryOpenStream()
+		{
+			if (!TryReadResource(out var ptr, out var length))
+				return null;
+			return new ResourceMemoryStream(Module.Reader, ptr + sizeof(int), length);
+		}
+
+		public unsafe override long? TryGetLength()
+		{
+			if (!TryReadResource(out _, out var length))
+				return null;
+			return length;
 		}
 	}
 

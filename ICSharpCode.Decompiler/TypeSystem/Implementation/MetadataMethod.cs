@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Daniel Grunwald
+// Copyright (c) 2018 Daniel Grunwald
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -67,7 +67,8 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 			var (accessorOwner, semanticsAttribute) = module.PEFile.MethodSemanticsLookup.GetSemantics(handle);
 			const MethodAttributes finalizerAttributes = (MethodAttributes.Virtual | MethodAttributes.Family | MethodAttributes.HideBySig);
 			this.typeParameters = MetadataTypeParameter.Create(module, this, def.GetGenericParameters());
-			if (semanticsAttribute != 0)
+			if (semanticsAttribute != 0 && !accessorOwner.IsNil
+				&& accessorOwner.Kind is HandleKind.PropertyDefinition or HandleKind.EventDefinition)
 			{
 				this.symbolKind = SymbolKind.Accessor;
 				this.accessorOwner = accessorOwner;
@@ -128,7 +129,6 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 		public bool IsAccessor => symbolKind == SymbolKind.Accessor;
 
 		public bool HasBody => module.metadata.GetMethodDefinition(handle).HasBody();
-
 
 		public IMember AccessorOwner {
 			get {
@@ -271,8 +271,7 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 			}
 			Debug.Assert(i == parameters.Length);
 			var returnType = ApplyAttributeTypeVisitor.ApplyAttributesToType(signature.ReturnType,
-				module.Compilation, returnTypeAttributes, metadata, typeSystemOptions, nullableContext,
-				isSignatureReturnType: true);
+				module.Compilation, returnTypeAttributes, metadata, typeSystemOptions, nullableContext);
 			return (returnType, parameters, signature.ReturnType as ModifiedType);
 		}
 		#endregion
@@ -462,6 +461,30 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 			b.AddSecurityAttributes(def.GetDeclarativeSecurityAttributes());
 
 			return b.Build();
+		}
+
+		public bool HasAttribute(KnownAttribute attribute)
+		{
+			if (!attribute.IsCustomAttribute())
+			{
+				return GetAttributes().Any(attr => attr.AttributeType.IsKnownType(attribute));
+			}
+			var b = new AttributeListBuilder(module);
+			var metadata = module.metadata;
+			var def = metadata.GetMethodDefinition(handle);
+			return b.HasAttribute(metadata, def.GetCustomAttributes(), attribute, symbolKind);
+		}
+
+		public IAttribute GetAttribute(KnownAttribute attribute)
+		{
+			if (!attribute.IsCustomAttribute())
+			{
+				return GetAttributes().FirstOrDefault(attr => attr.AttributeType.IsKnownType(attribute));
+			}
+			var b = new AttributeListBuilder(module);
+			var metadata = module.metadata;
+			var def = metadata.GetMethodDefinition(handle);
+			return b.GetAttribute(metadata, def.GetCustomAttributes(), attribute, symbolKind);
 		}
 		#endregion
 

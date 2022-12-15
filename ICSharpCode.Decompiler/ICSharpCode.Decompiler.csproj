@@ -16,7 +16,7 @@
     <Product>ILSpy</Product>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/icsharpcode/ILSpy.git</RepositoryUrl>
-    <PackageIconUrl>images\DecompilerNuGetPackageIcon.png</PackageIconUrl>
+    <PackageIcon>DecompilerNuGetPackageIcon.png</PackageIcon>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Copyright>Copyright 2011-$([System.DateTime]::Now.Year) AlphaSierraPapa</Copyright>
     <PackageTags>C# Decompiler ILSpy</PackageTags>
@@ -27,7 +27,7 @@
     <GenerateAssemblyInformationalVersionAttribute>False</GenerateAssemblyInformationalVersionAttribute>
 
     <EnableDefaultItems>false</EnableDefaultItems>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>10</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>ICSharpCode.Decompiler.snk</AssemblyOriginatorKeyFile>
@@ -39,10 +39,13 @@
     <DebugSymbols>true</DebugSymbols>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <CodeAnalysisRuleSet>ICSharpCode.Decompiler.ruleset</CodeAnalysisRuleSet>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="PackageReadme.md" Pack="true" PackagePath="\" />
+    <None Include="DecompilerNuGetPackageIcon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -57,16 +60,20 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
+  <!-- Inject ILSpyUpdateAssemblyInfo as dependency of the GetPackageVersion
+    target so Pack uses the generated version when evaluating project references. -->
   <PropertyGroup>
-    <CodeAnalysisRuleSet>ICSharpCode.Decompiler.ruleset</CodeAnalysisRuleSet>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GetPackageVersionDependsOn>
+      ILSpyUpdateAssemblyInfo;
+      $(GetPackageVersionDependsOn)
+    </GetPackageVersionDependsOn>
   </PropertyGroup>
 
   <Import Project="..\packages.props" />
 
   <ItemGroup>
-    <PackageReference Include="System.Collections.Immutable" Version="$(SystemCollectionsImmutableVersion)" />
-    <PackageReference Include="System.Reflection.Metadata" Version="$(SystemReflectionMetadataVersion)" />
+    <PackageReference Include="System.Collections.Immutable" Version="6.0.0" />
+    <PackageReference Include="System.Reflection.Metadata" Version="6.0.0" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -84,6 +91,11 @@
     <Compile Include="CSharp\Annotations.cs" />
     <Compile Include="CSharp\CallBuilder.cs" />
     <Compile Include="CSharp\CSharpLanguageVersion.cs" />
+    <Compile Include="DecompilationProgress.cs" />
+    <Compile Include="Disassembler\IEntityProcessor.cs" />
+    <Compile Include="Disassembler\SortByNameProcessor.cs" />
+    <Compile Include="NRTAttributes.cs" />
+    <Compile Include="PartialTypeInfo.cs" />
     <Compile Include="CSharp\ProjectDecompiler\IProjectFileWriter.cs" />
     <Compile Include="CSharp\OutputVisitor\GenericGrammarAmbiguityVisitor.cs" />
     <Compile Include="CSharp\ProjectDecompiler\IProjectInfoProvider.cs" />
@@ -114,6 +126,7 @@
     <Compile Include="Disassembler\DisassemblerSignatureTypeProvider.cs" />
     <Compile Include="Documentation\XmlDocumentationElement.cs" />
     <Compile Include="IL\ControlFlow\AwaitInFinallyTransform.cs" />
+    <Compile Include="IL\Transforms\InterpolatedStringTransform.cs" />
     <Compile Include="IL\Transforms\IntroduceNativeIntTypeOnLocals.cs" />
     <Compile Include="IL\Transforms\LdLocaDupInitObjTransform.cs" />
     <Compile Include="IL\Transforms\ParameterNullCheckTransform.cs" />
@@ -125,6 +138,7 @@
     <Compile Include="Metadata\MetadataGenericContext.cs" />
     <Compile Include="Metadata\ReferenceLoadInfo.cs" />
     <Compile Include="Properties\DecompilerVersionInfo.cs" />
+    <Compile Include="TypeSystem\ITypeDefinitionOrUnknown.cs" />
     <None Include="Properties\DecompilerVersionInfo.template.cs" />
     <Compile Include="Semantics\OutVarResolveResult.cs" />
     <Compile Include="SingleFileBundle.cs" />
@@ -664,10 +678,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\doc\Pattern Matching.html">
+    <None Include="..\doc\Pattern Matching.html">
       <Link>CSharp\Syntax\PatternMatching\Pattern Matching.html</Link>
-    </Content>
-    <Content Include="Humanizer\LICENSE" />
+    </None>
+    <None Include="Humanizer\LICENSE" />
   </ItemGroup>
 
   <ItemGroup>

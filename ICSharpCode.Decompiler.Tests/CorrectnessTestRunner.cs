@@ -1,4 +1,4 @@
-﻿// Copyright (c) AlphaSierraPapa for the SharpDevelop Team
+// Copyright (c) AlphaSierraPapa for the SharpDevelop Team
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -398,10 +398,6 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public async Task MiniJSON([ValueSource(nameof(defaultOptions))] CompilerOptions options)
 		{
-			if (options.HasFlag(CompilerOptions.UseMcs2_6_4))
-			{
-				Assert.Ignore("Decompiler bug with mono!");
-			}
 			await RunCS(options: options);
 		}
 
@@ -443,9 +439,7 @@ namespace ICSharpCode.Decompiler.Tests
 				decompiledOutputFile = await Tester.CompileCSharp(decompiledCodeFile, options).ConfigureAwait(false);
 
 				await Tester.RunAndCompareOutput(testFileName, outputFile.PathToAssembly, decompiledOutputFile.PathToAssembly, decompiledCodeFile, (options & CompilerOptions.UseTestRunner) != 0, (options & CompilerOptions.Force32Bit) != 0);
-
 				Tester.RepeatOnIOError(() => File.Delete(decompiledCodeFile));
-				Tester.RepeatOnIOError(() => File.Delete(decompiledOutputFile.PathToAssembly));
 			}
 			finally
 			{
@@ -473,9 +467,7 @@ namespace ICSharpCode.Decompiler.Tests
 				decompiledOutputFile = await Tester.CompileCSharp(decompiledCodeFile, options).ConfigureAwait(false);
 
 				await Tester.RunAndCompareOutput(testFileName, outputFile.PathToAssembly, decompiledOutputFile.PathToAssembly, decompiledCodeFile, (options & CompilerOptions.UseTestRunner) != 0, (options & CompilerOptions.Force32Bit) != 0);
-
 				Tester.RepeatOnIOError(() => File.Delete(decompiledCodeFile));
-				Tester.RepeatOnIOError(() => File.Delete(decompiledOutputFile.PathToAssembly));
 			}
 			finally
 			{
@@ -499,9 +491,7 @@ namespace ICSharpCode.Decompiler.Tests
 				decompiledOutputFile = await Tester.CompileCSharp(decompiledCodeFile, options).ConfigureAwait(false);
 
 				await Tester.RunAndCompareOutput(testFileName, outputFile, decompiledOutputFile.PathToAssembly, decompiledCodeFile, (options & CompilerOptions.UseTestRunner) != 0, (options & CompilerOptions.Force32Bit) != 0).ConfigureAwait(false);
-
 				Tester.RepeatOnIOError(() => File.Delete(decompiledCodeFile));
-				Tester.RepeatOnIOError(() => File.Delete(decompiledOutputFile.PathToAssembly));
 			}
 			finally
 			{
