@@ -5,8 +5,8 @@
 	Note: when updating these, ensure to also adjust the binding redirects in app.config.template appropriately.
 	-->
 	<PropertyGroup>
-		<SystemCollectionsImmutableVersion>6.0.0</SystemCollectionsImmutableVersion>
-		<SystemReflectionMetadataVersion>6.0.1</SystemReflectionMetadataVersion>
+		<SystemCollectionsImmutableVersion>7.0.0</SystemCollectionsImmutableVersion>
+		<SystemReflectionMetadataVersion>7.0.0</SystemReflectionMetadataVersion>
 		<SystemCompilerServicesUnsafeVersion>6.0.0</SystemCompilerServicesUnsafeVersion>
 		<SystemCompositionVersion>6.0.0</SystemCompositionVersion>
 		<!-- Microsoft.NETCore.ILAsm -->
@@ -16,14 +16,14 @@
 		<!-- Microsoft.CodeAnalysis.* -->
 		<RoslynVersion>4.4.0</RoslynVersion>
 		<MonoCecilVersion>0.11.4</MonoCecilVersion>
-		<AvalonEditVersion>6.2.0.78</AvalonEditVersion>
-		<WpfStylesToolboxVersion>2.8.4</WpfStylesToolboxVersion>
+		<AvalonEditVersion>6.3.0.90</AvalonEditVersion>
+		<WpfStylesToolboxVersion>2.8.7</WpfStylesToolboxVersion>
 		<NUnitVersion>3.13.3</NUnitVersion>
-		<NUnitAdapterVersion>4.2.1</NUnitAdapterVersion>
-		<JUnitXmlTestLoggerVersion>3.0.114</JUnitXmlTestLoggerVersion>
-		<CoverletCollectorVersion>3.1.2</CoverletCollectorVersion>
-		<MicrosoftNETTestSdkVersion>17.2.0</MicrosoftNETTestSdkVersion>
-		<MoqVersion>4.18.1</MoqVersion>
+		<NUnitAdapterVersion>4.4.2</NUnitAdapterVersion>
+		<JUnitXmlTestLoggerVersion>3.0.124</JUnitXmlTestLoggerVersion>
+		<CoverletCollectorVersion>3.2.0</CoverletCollectorVersion>
+		<MicrosoftNETTestSdkVersion>17.5.0</MicrosoftNETTestSdkVersion>
+		<MoqVersion>4.18.4</MoqVersion>
 		<DiffLibVersion>2017.7.26.1241</DiffLibVersion>
 		<DSRConverterXmlVersion>1.1.0-beta2-22171-02</DSRConverterXmlVersion>
 	</PropertyGroup>

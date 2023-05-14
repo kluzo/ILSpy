@@ -52,6 +52,7 @@ using ICSharpCode.ILSpy.Themes;
 using ICSharpCode.ILSpy.TreeNodes;
 using ICSharpCode.ILSpy.ViewModels;
 using ICSharpCode.ILSpyX;
+using ICSharpCode.ILSpyX.Settings;
 using ICSharpCode.TreeView;
 
 using Microsoft.Win32;
@@ -103,7 +104,7 @@ namespace ICSharpCode.ILSpy
 
 		public DecompilerSettings CurrentDecompilerSettings { get; internal set; }
 
-		public DisplaySettings CurrentDisplaySettings { get; internal set; }
+		public DisplaySettingsViewModel CurrentDisplaySettings { get; internal set; }
 
 		public DecompilationOptions CreateDecompilationOptions()
 		{
@@ -183,7 +184,7 @@ namespace ICSharpCode.ILSpy
 				case nameof(SessionSettings.ActiveAssemblyList):
 					ShowAssemblyList(sessionSettings.ActiveAssemblyList);
 					break;
-				case nameof(SessionSettings.IsDarkMode):
+				case nameof(SessionSettings.Theme):
 					// update syntax highlighting and force reload (AvalonEdit does not automatically refresh on highlighting change)
 					DecompilerTextView.RegisterHighlighting();
 					DecompileSelectedNodes(DockWorkspace.Instance.ActiveTabPage.GetState() as DecompilerTextViewState);
@@ -580,7 +581,7 @@ namespace ICSharpCode.ILSpy
 			{
 				hwndSource.AddHook(WndProc);
 			}
-			App.ReleaseSingleInstanceMutex();
+			SingleInstanceHandling.ReleaseSingleInstanceMutex();
 			// Validate and Set Window Bounds
 			Rect bounds = Rect.Transform(sessionSettings.WindowBounds, source.CompositionTarget.TransformToDevice);
 			var boundsRect = new System.Drawing.Rectangle((int)bounds.Left, (int)bounds.Top, (int)bounds.Width, (int)bounds.Height);
