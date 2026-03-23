@@ -210,17 +210,17 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			return typeSystemOptions;
 		}
 
-		public static Task<DecompilerTypeSystem> CreateAsync(PEFile mainModule, IAssemblyResolver assemblyResolver)
+		public static Task<DecompilerTypeSystem> CreateAsync(MetadataFile mainModule, IAssemblyResolver assemblyResolver)
 		{
 			return CreateAsync(mainModule, assemblyResolver, TypeSystemOptions.Default);
 		}
 
-		public static Task<DecompilerTypeSystem> CreateAsync(PEFile mainModule, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
+		public static Task<DecompilerTypeSystem> CreateAsync(MetadataFile mainModule, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
 		{
 			return CreateAsync(mainModule, assemblyResolver, GetOptions(settings ?? throw new ArgumentNullException(nameof(settings))));
 		}
 
-		public static async Task<DecompilerTypeSystem> CreateAsync(PEFile mainModule, IAssemblyResolver assemblyResolver, TypeSystemOptions typeSystemOptions)
+		public static async Task<DecompilerTypeSystem> CreateAsync(MetadataFile mainModule, IAssemblyResolver assemblyResolver, TypeSystemOptions typeSystemOptions)
 		{
 			if (mainModule == null)
 				throw new ArgumentNullException(nameof(mainModule));

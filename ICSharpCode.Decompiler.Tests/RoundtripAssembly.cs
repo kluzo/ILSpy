@@ -203,7 +203,7 @@ namespace ICSharpCode.Decompiler.Roundtrip
 						{
 							decompiler.StrongNameKeyFile = Path.Combine(inputDir, snkFilePath);
 						}
-						decompiler.DecompileProject(module, decompiledDir);
+						await decompiler.DecompileProjectAsync(module, decompiledDir);
 						Console.WriteLine($"Decompiled {fileToRoundtrip} in {w.Elapsed.TotalSeconds:f2}");
 						projectFile = Path.Combine(decompiledDir, module.Name + ".csproj");
 					}

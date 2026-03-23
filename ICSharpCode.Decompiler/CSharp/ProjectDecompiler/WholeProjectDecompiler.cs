@@ -138,14 +138,27 @@ namespace ICSharpCode.Decompiler.CSharp.ProjectDecompiler
 
 		public void DecompileProject(MetadataFile file, string targetDirectory, CancellationToken cancellationToken = default(CancellationToken))
 		{
-			string projectFileName = Path.Combine(targetDirectory, CleanUpFileName(file.Name, ".csproj"));
-			using (var writer = CreateFile(projectFileName))
-			{
-				DecompileProject(file, targetDirectory, writer, cancellationToken);
-			}
+			var task = DecompileProjectAsync(file, targetDirectory, cancellationToken);
+			task.Wait();
 		}
 
 		public ProjectId DecompileProject(MetadataFile file, string targetDirectory, TextWriter projectFileWriter, CancellationToken cancellationToken = default(CancellationToken))
+		{
+			var task = DecompileProjectAsync(file, targetDirectory, projectFileWriter, cancellationToken);
+			task.Wait();
+			return task.Result;
+		}
+
+		public async Task DecompileProjectAsync(MetadataFile file, string targetDirectory, CancellationToken cancellationToken = default(CancellationToken))
+		{
+			string projectFileName = Path.Combine(targetDirectory, CleanUpFileName(file.Name, ".csproj"));
+			using (var writer = new StreamWriter(projectFileName))
+			{
+				await DecompileProjectAsync(file, targetDirectory, writer, cancellationToken);
+			}
+		}
+
+		public async Task<ProjectId> DecompileProjectAsync(MetadataFile file, string targetDirectory, TextWriter projectFileWriter, CancellationToken cancellationToken = default(CancellationToken))
 		{
 			if (string.IsNullOrEmpty(targetDirectory))
 			{
@@ -154,7 +167,7 @@ namespace ICSharpCode.Decompiler.CSharp.ProjectDecompiler
 			TargetDirectory = targetDirectory;
 			directories.Clear();
 			var resources = WriteResourceFilesInProject(file).ToList();
-			var files = WriteCodeFilesInProject(file, resources.SelectMany(r => r.PartialTypes ?? Enumerable.Empty<PartialTypeInfo>()).ToList(), cancellationToken).ToList();
+			var files = (await WriteCodeFilesInProjectAsync(file, resources.SelectMany(r => r.PartialTypes ?? Enumerable.Empty<PartialTypeInfo>()).ToList(), cancellationToken)).ToList();
 			files.AddRange(resources);
 			var module = file as PEFile;
 			if (module != null)
@@ -233,14 +246,14 @@ namespace ICSharpCode.Decompiler.CSharp.ProjectDecompiler
 			return new[] { new ProjectItemInfo("Compile", assemblyInfo) };
 		}
 
-		IEnumerable<ProjectItemInfo> WriteCodeFilesInProject(MetadataFile module, IList<PartialTypeInfo> partialTypes, CancellationToken cancellationToken)
+		async Task<IEnumerable<ProjectItemInfo>> WriteCodeFilesInProjectAsync(MetadataFile module, IList<PartialTypeInfo> partialTypes, CancellationToken cancellationToken)
 		{
 			var metadata = module.Metadata;
 			var files = module.Metadata.GetTopLevelTypeDefinitions().Where(td => IncludeTypeWhenDecompilingProject(module, td))
 				.GroupBy(GetFileFileNameForHandle, StringComparer.OrdinalIgnoreCase).ToList();
 			var progressReporter = ProgressIndicator;
 			var progress = new DecompilationProgress { TotalUnits = files.Count, Title = "Exporting project..." };
-			DecompilerTypeSystem ts = new DecompilerTypeSystem(module, AssemblyResolver, Settings);
+			DecompilerTypeSystem ts = await DecompilerTypeSystem.CreateAsync(module, AssemblyResolver, Settings);
 			var workList = new HashSet<TypeDefinitionHandle>();
 			var processedTypes = new HashSet<TypeDefinitionHandle>();
 			ProcessFiles(files);

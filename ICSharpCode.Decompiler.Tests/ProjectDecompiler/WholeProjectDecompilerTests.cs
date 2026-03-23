@@ -19,6 +19,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 
 using ICSharpCode.Decompiler.CSharp.ProjectDecompiler;
 using ICSharpCode.Decompiler.Metadata;
@@ -31,12 +32,12 @@ namespace ICSharpCode.Decompiler.Tests.ProjectDecompiler;
 public sealed class WholeProjectDecompilerTests
 {
 	[Test]
-	public void UseNestedDirectoriesForNamespacesTrueWorks()
+	public async Task UseNestedDirectoriesForNamespacesTrueWorks()
 	{
 		string targetDirectory = Path.Combine(Environment.CurrentDirectory, Path.GetRandomFileName());
 		TestFriendlyProjectDecompiler decompiler = new(new UniversalAssemblyResolver(null, false, null));
 		decompiler.Settings.UseNestedDirectoriesForNamespaces = true;
-		decompiler.DecompileProject(new PEFile("ICSharpCode.Decompiler.dll"), targetDirectory);
+		await decompiler.DecompileProjectAsync(new PEFile("ICSharpCode.Decompiler.dll"), targetDirectory);
 		AssertDirectoryDoesntExist(targetDirectory);
 
 		string projectDecompilerDirectory = Path.Combine(targetDirectory, "ICSharpCode", "Decompiler", "CSharp", "ProjectDecompiler");
@@ -50,12 +51,12 @@ public sealed class WholeProjectDecompilerTests
 	}
 
 	[Test]
-	public void UseNestedDirectoriesForNamespacesFalseWorks()
+	public async Task UseNestedDirectoriesForNamespacesFalseWorks()
 	{
 		string targetDirectory = Path.Combine(Environment.CurrentDirectory, Path.GetRandomFileName());
 		TestFriendlyProjectDecompiler decompiler = new(new UniversalAssemblyResolver(null, false, null));
 		decompiler.Settings.UseNestedDirectoriesForNamespaces = false;
-		decompiler.DecompileProject(new PEFile("ICSharpCode.Decompiler.dll"), targetDirectory);
+		await decompiler.DecompileProjectAsync(new PEFile("ICSharpCode.Decompiler.dll"), targetDirectory);
 		AssertDirectoryDoesntExist(targetDirectory);
 
 		string projectDecompilerDirectory = Path.Combine(targetDirectory, "ICSharpCode.Decompiler.CSharp.ProjectDecompiler");

@@ -25,6 +25,7 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Threading;
+using System.Threading.Tasks;
 
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
@@ -268,6 +269,36 @@ namespace ICSharpCode.Decompiler.CSharp
 				throw new ArgumentException("Cannot use an uncached type system in the decompiler.");
 		}
 
+		#region CreateAsync
+
+		/// <summary>
+		/// Creates a new <see cref="CSharpDecompiler"/> instance from the given <paramref name="fileName"/> using the given <paramref name="settings"/>.
+		/// </summary>
+		public static async Task<CSharpDecompiler> CreateAsync(string fileName, DecompilerSettings settings)
+		{
+			var typeSystem = await CreateTypeSystemFromFileAsync(fileName, settings);
+			return new CSharpDecompiler(typeSystem, settings);
+		}
+
+		/// <summary>
+		/// Creates a new <see cref="CSharpDecompiler"/> instance from the given <paramref name="fileName"/> using the given <paramref name="assemblyResolver"/> and <paramref name="settings"/>.
+		/// </summary>
+		public static async Task<CSharpDecompiler> CreateAsync(string fileName, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
+		{
+			return await CreateAsync(LoadPEFile(fileName, settings), assemblyResolver, settings);
+		}
+
+		/// <summary>
+		/// Creates a new <see cref="CSharpDecompiler"/> instance from the given <paramref name="module"/> using the given <paramref name="assemblyResolver"/> and <paramref name="settings"/>.
+		/// </summary>
+		public static async Task<CSharpDecompiler> CreateAsync(PEFile module, IAssemblyResolver assemblyResolver, DecompilerSettings settings)
+		{
+			var typeSystem = await DecompilerTypeSystem.CreateAsync(module, assemblyResolver, settings);
+			return new CSharpDecompiler(typeSystem, settings);
+		}
+
+		#endregion
+
 		#region MemberIsHidden
 		/// <summary>
 		/// Determines whether a <paramref name="member"/> should be hidden from the decompiled code. This is used to exclude compiler-generated code that is handled by transforms from the output.
@@ -489,6 +520,17 @@ namespace ICSharpCode.Decompiler.CSharp
 				settings.LoadInMemory ? PEStreamOptions.PrefetchMetadata : PEStreamOptions.Default,
 				settings.ApplyWindowsRuntimeProjections ? MetadataReaderOptions.ApplyWindowsRuntimeProjections : MetadataReaderOptions.None);
 			return new DecompilerTypeSystem(file, resolver, settings);
+		}
+
+		static async Task<DecompilerTypeSystem> CreateTypeSystemFromFileAsync(string fileName, DecompilerSettings settings)
+		{
+			settings.LoadInMemory = true;
+			var file = LoadPEFile(fileName, settings);
+			var resolver = new UniversalAssemblyResolver(fileName, settings.ThrowOnAssemblyResolveErrors,
+				file.DetectTargetFrameworkId(), file.DetectRuntimePack(),
+				settings.LoadInMemory ? PEStreamOptions.PrefetchMetadata : PEStreamOptions.Default,
+				settings.ApplyWindowsRuntimeProjections ? MetadataReaderOptions.ApplyWindowsRuntimeProjections : MetadataReaderOptions.None);
+			return await DecompilerTypeSystem.CreateAsync(file, resolver);
 		}
 
 		static TypeSystemAstBuilder CreateAstBuilder(DecompilerSettings settings)

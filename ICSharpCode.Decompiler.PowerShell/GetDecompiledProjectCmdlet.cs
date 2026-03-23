@@ -49,7 +49,7 @@ namespace ICSharpCode.Decompiler.PowerShell
 
 			try
 			{
-				var task = Task.Run(() => DoDecompile(path));
+				var task = DoDecompileAsync(path);
 				int timeout = 100;
 
 				// Give the decompiler some time to spin up all threads
@@ -86,7 +86,7 @@ namespace ICSharpCode.Decompiler.PowerShell
 			}
 		}
 
-		private void DoDecompile(string path)
+		private async Task DoDecompileAsync(string path)
 		{
 			MetadataFile module = Decompiler.TypeSystem.MainModule.MetadataFile;
 			var assemblyResolver = new UniversalAssemblyResolver(module.FileName, false, module.Metadata.DetectTargetFrameworkId());
@@ -94,7 +94,7 @@ namespace ICSharpCode.Decompiler.PowerShell
 			decompiler.ProgressIndicator = this;
 			fileName = module.FileName;
 			completed = 0;
-			decompiler.DecompileProject(module, path);
+			await decompiler.DecompileProjectAsync(module, path);
 		}
 	}
 }
