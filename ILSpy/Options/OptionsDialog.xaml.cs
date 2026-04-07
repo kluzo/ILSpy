@@ -35,42 +35,4 @@ namespace ICSharpCode.ILSpy.Options
 			InitializeComponent();
 		}
 	}
-
-	public interface IOptionsMetadata
-	{
-		int Order { get; }
-	}
-
-	public interface IOptionPage
-	{
-		string Title { get; }
-
-		void Load(SettingsSnapshot settings);
-
-		void LoadDefaults();
-	}
-
-	[MetadataAttribute]
-	[AttributeUsage(AttributeTargets.Class)]
-	public sealed class ExportOptionPageAttribute() : ExportAttribute("OptionPages", typeof(IOptionPage)), IOptionsMetadata
-	{
-		public int Order { get; set; }
-	}
-
-	[ExportMainMenuCommand(ParentMenuID = nameof(Resources._View), Header = nameof(Resources._Options), MenuCategory = nameof(Resources.Options), MenuOrder = 999)]
-	[Shared]
-	sealed class ShowOptionsCommand(AssemblyTreeModel assemblyTreeModel, SettingsService settingsService, MainWindow mainWindow) : SimpleCommand
-	{
-		public override void Execute(object parameter)
-		{
-			OptionsDialog dlg = new(settingsService) {
-				Owner = mainWindow
-			};
-
-			if (dlg.ShowDialog() == true)
-			{
-				assemblyTreeModel.Refresh();
-			}
-		}
-	}
 }

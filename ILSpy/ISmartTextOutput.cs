@@ -18,13 +18,9 @@
 
 using System;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
 
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.Decompiler;
-using ICSharpCode.ILSpy.Themes;
 
 namespace ICSharpCode.ILSpy
 {
@@ -45,39 +41,5 @@ namespace ICSharpCode.ILSpy
 		/// Gets/sets the title displayed in the document tab's header.
 		/// </summary>
 		string Title { get; set; }
-	}
-
-	public static class SmartTextOutputExtensions
-	{
-		/// <summary>
-		/// Creates a button.
-		/// </summary>
-		public static void AddButton(this ISmartTextOutput output, ImageSource icon, string text, RoutedEventHandler click)
-		{
-			output.AddUIElement(
-				delegate {
-					Button button = ThemeManager.Current.CreateButton();
-					button.Cursor = Cursors.Arrow;
-					button.Margin = new Thickness(2);
-					button.Padding = new Thickness(9, 1, 9, 1);
-					button.MinWidth = 73;
-					if (icon != null)
-					{
-						button.Content = new StackPanel {
-							Orientation = Orientation.Horizontal,
-							Children = {
-								new Image { Width = 16, Height = 16, Source = icon, Margin = new Thickness(0, 0, 4, 0) },
-								new TextBlock { Text = text }
-							}
-						};
-					}
-					else
-					{
-						button.Content = text;
-					}
-					button.Click += click;
-					return button;
-				});
-		}
 	}
 }

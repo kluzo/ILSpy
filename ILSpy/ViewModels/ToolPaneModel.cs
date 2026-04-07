@@ -20,12 +20,21 @@ using System.Windows.Input;
 
 namespace ICSharpCode.ILSpy.ViewModels
 {
+#if CROSS_PLATFORM
+	public abstract class ToolPaneModel : Dock.Model.TomsToolbox.Controls.Tool
+	{
+		protected static DockWorkspace DockWorkspace => App.ExportProvider.GetExportedValue<DockWorkspace>();
+#else
 	public abstract class ToolPaneModel : PaneModel
 	{
+#endif
 		public virtual void Show()
 		{
 			this.IsActive = true;
 			this.IsVisible = true;
+#if CROSS_PLATFORM
+			DockWorkspace.ActivateToolPane(ContentId);
+#endif
 		}
 
 		public KeyGesture ShortcutKey { get; protected set; }
